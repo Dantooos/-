@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <title>Bazos AutoFill Pro — Настройки</title>
+  <link rel="stylesheet" href="style.css">
+  <style>
+    body { font-family: Arial,sans-serif; margin:0; background:#fafbfc;}
+    header { background: #275585; color:#fff; padding: 18px 26px 10px 26px; position: relative;}
+    .header-title { font-size:22px;font-weight:bold;margin-left:10px; vertical-align:middle;}
+    .header-signature {
+      font-family: 'Segoe UI',Arial,sans-serif;
+      font-size:17px;
+      font-weight:700;
+      margin-left:18px;
+      letter-spacing: 0.4px;
+      background: linear-gradient(90deg, #FF7E5F 0%, #5A9CFF 100%);
+      color: #fff;
+      padding: 2px 18px 2px 18px;
+      border-radius: 9px;
+      box-shadow: 0 2px 12px 0 rgba(0,80,200,0.08);
+      text-shadow: 0 1px 7px rgba(0,0,0,0.13), 0 0px 0px #fff;
+      display: inline-block;
+      vertical-align: middle;
+      margin-bottom: 2px;
+    }
+    .tabs { display:flex; gap:8px; background:#e9eef4; padding: 10px 26px; }
+    .tab-btn { background: #e9eef4; border:0; border-radius:7px 7px 0 0; font-weight:600; font-size:16px; padding: 6px 19px; cursor:pointer; transition:.15s; }
+    .tab-btn.active { background: #fff; color:#2a62a5; border-bottom:2px solid #fff; }
+    section.tab { display:none; background:#fff; border-radius:0 0 14px 14px; margin: 0 26px 22px 26px; padding:20px 24px 22px 24px; border:1px solid #e4eaf1; }
+    section.tab.active { display:block; }
+    label { margin-right:14px; }
+    .alias-table { border-collapse: collapse; width:100%; margin-top: 8px; }
+    .alias-table th, .alias-table td { border:1px solid #dde2e8; padding:4px 10px; font-size:14px;}
+    .alias-table .active-row { background:#d6eeff; }
+    .alias-table .black-row { background:#ececec; color:#999;}
+    #phrasesListContainer {max-height:320px;}
+    #statHistory {font-family:monospace;}
+    button { cursor:pointer; }
+
+    /* Новый антиспам блок */
+    .antiblock label { display: flex; align-items: center; margin: 0 0 8px 0;}
+    .antiblock label span {margin-left:7px; color:#6d6d6d; font-size:13px;}
+    .antiblock input[type="number"] { width: 64px; }
+    .antiblock .group { display:flex; gap:10px; flex-wrap: wrap; margin:8px 0;}
+    .antiblock .group input[type="number"] { width:54px;}
+    .antiblock .desc { font-size:12px; color:#555; margin-bottom:10px;}
+    .antiblock hr { margin:12px 0 10px 0; border: none; border-top:1px solid #e1e5eb;}
+    .antiblock .section-title { font-weight:bold; font-size:15px; margin:9px 0 6px 0;}
+    .antiblock .toggle {margin-bottom:10px;}
+    .antiblock .switch {
+      position: relative; display: inline-block; width: 44px; height: 24px; margin-left:8px; margin-right:4px;
+    }
+    .antiblock .switch input {opacity:0;width:0;height:0;}
+    .antiblock .slider {
+      position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background: #bdd0e8; transition: .3s; border-radius:24px;
+    }
+    .antiblock .slider:before {
+      position: absolute; content: ""; height: 18px; width: 18px; left: 3px; bottom: 3px; background: white; transition: .3s; border-radius:50%;
+    }
+    .antiblock input:checked + .slider { background: #3777cc; }
+    .antiblock input:checked + .slider:before { transform: translateX(20px); }
+    #antispam_status {margin-top:8px;color:green;}
+    #saveAntispam {padding:7px 30px; font-size:16px; background:#3566a3; color:#fff; border:0; border-radius:7px;}
+  </style>
+
+<style>
+.btn-small {
+  padding: 4px 10px;
+  border: 1px solid #c9c9c9;
+  background: #f6f6f6;
+  color: #111 !important;
+  font-size: 12px;
+  line-height: 1.2;
+  white-space: nowrap;
+  border-radius: 6px;
+  cursor: pointer;
+}
+.btn-small:hover { filter: brightness(0.97); }
+.btn-small:disabled { opacity: .55; cursor: default; }
+</style>
+
+</head>
+<body>
+  <header>
+    <img src="icon.png" width="32" style="vertical-align:middle">
+    <span class="header-title">Bazos AutoFill Pro</span>
+    <span class="header-signature">by Артист &amp; Sk4n</span>
+  </header>
+  <nav class="tabs">
+    <button data-tab="email" class="tab-btn active">Email</button>
+    <button data-tab="phrases" class="tab-btn">Фразы</button>
+    <button data-tab="stats" class="tab-btn">Статистика</button>
+    <button data-tab="options" class="tab-btn">Опции</button>
+    <button data-tab="cookieProfiles" class="tab-btn">ПРОФИЛИ КУКИ</button>
+  </nav>
+
+  <!-- EMAIL-АЛИАСЫ -->
+  <section id="email" class="tab active">
+    <div style="display: flex; gap: 18px; align-items: flex-start;">
+      <div style="flex:1;">
+        <label for="czBase"><b>CZ email:</b></label>
+        <input id="czBase" placeholder="base@gmail.com" style="width:220px;">
+        <button id="saveCz">💾 Сохранить +20</button>
+        <button id="switchCz">🔄 Сменить alias</button>
+        <table id="tableCZ" class="alias-table" style="margin-top:10px;">
+          <thead><tr><th>#</th><th>Alias</th><th>Статус</th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+      <div style="flex:1;">
+        <label for="skBase"><b>SK email:</b></label>
+        <input id="skBase" placeholder="base@gmail.com" style="width:220px;">
+        <button id="saveSk">💾 Сохранить +20</button>
+        <button id="switchSk">🔄 Сменить alias</button>
+        <table id="tableSK" class="alias-table" style="margin-top:10px;">
+          <thead><tr><th>#</th><th>Alias</th><th>Статус</th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <!-- ФРАЗЫ -->
+  <section id="phrases" class="tab">
+    <div id="countrySelector" style="margin-bottom: 10px;">
+      <button data-country="cz" class="active">Чехия</button>
+      <button data-country="sk">Словакия</button>
+    </div>
+    <div>
+      <select id="categorySelect" style="margin-bottom: 10px; width: 220px;"></select>
+    </div>
+    <div id="phrasesListContainer" style="max-height: 300px; overflow-y: auto; border: 1px solid #ccc; padding: 8px; border-radius: 5px;">
+      <ul id="phrasesList" style="list-style: none; padding-left: 0; margin: 0;"></ul>
+    </div>
+  </section>
+
+  <!-- СТАТИСТИКА -->
+  <section id="stats" class="tab">
+    <div style="margin:10px 0;">
+      <b>За 24 часа:</b> <span id="stat24Total">0</span>
+      <div>CZ: <span id="stat24Cz"></span></div>
+      <div>SK: <span id="stat24Sk"></span></div>
+      <button id="resetStatsBtn" style="margin-top:8px;">Сбросить статистику</button>
+    </div>
+    <div><b>История:</b></div>
+    <div id="statHistory" style="font-size:13px;max-height:180px;overflow:auto;border:1px solid #eee;padding:6px;border-radius:4px;"></div>
+  </section>
+
+  <!-- НОВЫЙ АНТИСПАМ ПРО -->
+  <section id="options" class="tab">
+    <div class="antiblock" style="max-width:500px;margin:0 auto;">
+      <div class="section-title">Антиспам — <span style="font-weight:400;">имитация человека</span></div>
+      <div class="toggle">
+        <label style="align-items:center;"><span>Включить антиспам</span>
+          <span class="switch"><input type="checkbox" id="antispam_enable" checked><span class="slider"></span></span>
+        </label>
+        <span class="desc">Отключите, если хотите мгновенную отправку без задержек и имитации.</span>
+      </div>
+      <hr>
+      <div class="section-title">Задержка перед началом</div>
+      <div class="group">
+        <span>от <input type="number" id="asp_start_min" value="2" step="0.01" min="0"> до <input type="number" id="asp_start_max" value="10" step="0.01" min="0"> сек</span>
+      </div>
+      <span class="desc">Ждать перед любым действием: как будто “осматривает объявление”.</span>
+      <hr>
+      <div class="section-title">Поведение мыши</div>
+      <label><input type="checkbox" id="antispam_mouse" checked> Шевелить мышкой <span>Рандомное перемещение курсора</span></label>
+      <label><input type="checkbox" id="antispam_scroll" checked> Скроллить <span>Крутит колесо случайно</span></label>
+      <label><input type="checkbox" id="antispam_clicks" checked> Кликать <span>Случайно кликает по странице</span></label>
+      <label><input type="checkbox" id="antispam_select" checked> Иногда выделять поле мышкой
+        <input type="number" id="asp_select_percent" value="10" min="0" max="100" style="width:38px;">%
+        <span>Перед вводом email/текста. 0 — никогда</span>
+      </label>
+      <hr>
+      <div class="section-title">Ввод e-mail</div>
+      <div class="group">
+        <span>Буква: от <input type="number" id="asp_email_min" value="0.12" step="0.01" min="0.01"> до <input type="number" id="asp_email_max" value="0.50" step="0.01" min="0.01"> сек</span>
+        <span>Ошибки: <input type="number" id="asp_email_errors" value="2" min="0" max="3" style="width:34px;"></span>
+      </div>
+      <label>
+        <input type="checkbox" id="asp_email_paste" checked> Иногда вставлять email (Ctrl+V)
+        <input type="number" id="asp_email_paste_percent" value="30" min="0" max="100" style="width:38px;">%
+        <span>Имитация “Ctrl+V” вместо печати. 0 — всегда печатать</span>
+      </label>
+      <label>
+        <input type="checkbox" id="asp_email_full_del" checked> Иногда стирать email полностью и вводить заново
+        <input type="number" id="asp_email_full_del_percent" value="10" min="0" max="100" style="width:38px;">%
+        <span>1 раз из 10 удаляет весь email и набирает ещё раз</span>
+      </label>
+      <hr>
+      <div class="section-title">Пауза между email и текстом</div>
+      <div class="group">
+        <span>от <input type="number" id="asp_between_min" value="0.50" step="0.01" min="0.01"> до <input type="number" id="asp_between_max" value="5" step="0.01" min="0.01"> сек</span>
+      </div>
+      <hr>
+      <div class="section-title">Ввод текста</div>
+      <div class="group">
+        <span>Буква: от <input type="number" id="asp_text_min" value="0.06" step="0.01" min="0.01"> до <input type="number" id="asp_text_max" value="0.50" step="0.01" min="0.01"> сек</span>
+        <span>Ошибки: <input type="number" id="asp_text_errors" value="3" min="0" max="3" style="width:34px;"></span>
+      </div>
+      <label>
+        <input type="checkbox" id="asp_text_del1" checked> Иногда стирать 1 букву и вводить заново
+        <input type="number" id="asp_text_del1_percent" value="5" min="0" max="100" style="width:38px;">%
+        <span>Случайная опечатка с удалением</span>
+      </label>
+      <label>
+        <input type="checkbox" id="asp_text_full_del" checked> Иногда стирать весь текст и вводить заново
+        <input type="number" id="asp_text_full_del_percent" value="5" min="0" max="100" style="width:38px;">%
+        <span>1 из 10 — стирает всё сообщение и печатает снова</span>
+      </label>
+      <hr>
+      <div class="section-title">Пауза перед отправкой</div>
+      <div class="group">
+        <span>от <input type="number" id="asp_presend_min" value="5" step="0.01" min="0.01"> до <input type="number" id="asp_presend_max" value="10" step="0.01" min="0.01"> сек</span>
+      </div>
+      <div style="text-align:center;">
+        <button id="saveAntispam">💾 Сохранить антиспам-настройки</button>
+        <div id="antispam_status"></div>
+      </div>
+    </div>
+  </section>
+  <script src="options.js"></script>
+
+  <!-- ПРОФИЛИ КУКИ -->
+  <section id="cookieProfiles" class="tab">
+    <div style="margin-bottom:10px;">
+      <label><input type="checkbox" id="cookieRotationEnabled"> Включить ротацию email+куки</label>
+    </div>
+    <div class="cookie-active-settings">
+      <label>
+        Активных email-профилей CZ:
+        <input id="cookie_cz_active_count" type="number" min="1" max="20" style="width:60px;">
+      </label>
+      &nbsp;&nbsp;
+      <label>
+        Активных email-профилей SK:
+        <input id="cookie_sk_active_count" type="number" min="1" max="20" style="width:60px;">
+      </label>
+      &nbsp;&nbsp;
+      <button id="cookie_active_save" type="button">Сохранить активные</button>
+    </div>
+    <div style="margin-top:6px;">
+      <button id="cookie_clear_invalid_tokens" type="button">
+        🧹 Очистить НЕВАЛИДНЫЕ токены (оставить почты)
+      </button>
+    </div>
+    <br>
+    <div style="display:flex; gap:16px;">
+      <div style="flex:1;">
+        <h3>Чехия (CZ)</h3>
+    <table id="cookieTableCZ" class="alias-table" style="margin-top:10px;">
+      <thead>
+        <tr>
+          <th>Вкл</th>
+          <th>Email</th>
+          <th>UA</th>
+          <th>BD</th>
+          <th>Отправка</th>
+          <th>Валид</th>
+          <th>Действия</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+      </div>
+      <div style="flex:1;">
+        <h3>Словакия (SK)</h3>
+    <table id="cookieTableSK" class="alias-table" style="margin-top:10px;">
+      <thead>
+        <tr>
+          <th>Вкл</th>
+          <th>Email</th>
+          <th>UA</th>
+          <th>BD</th>
+          <th>Отправка</th>
+          <th>Валид</th>
+          <th>Действия</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+      </div>
+    </div>
+    <div style="margin-top:10px; font-size:12px; color:#666;">
+      <b>Как это работает:</b> при <b>включённом</b> рубильнике сверху расширение будет по кругу подставлять выбранные email вместе с прикреплёнными к ним куками при каждом открытии объявления. 
+      При <b>выключенном</b> рубильнике — откройте объявление, авторизуйтесь/привяжите номер, затем напротив нужного email нажмите «Привязать куки» — они сохранятся только в профиле и будут очищены из браузера.
+    </div>
+  </section>
+
+
+<hr/>
+<section id="ai-settings" style="margin-top:12px;padding:12px;border:1px solid #ddd;border-radius:8px;">
+  <h3>AI генерация текста ответа</h3>
+<div style="margin-top:8px;"><label>Провайдер: <select id="aiProvider"><option value="openai">OpenAI (API)</option><option value="ollama">Ollama (локально, бесплатно)</option><option value="custom">Другой HTTP совместимый</option></select></label></div><div style="margin-top:8px;display:none" id="aiEndpointBox"><label>HTTP Endpoint: <input type="text" id="aiEndpoint" placeholder="http://localhost:11434" style="width:340px;"></label></div>
+  <label><input type="checkbox" id="aiEnabled"> Включить AI-подбор текста</label><br/>
+  <div style="margin-top:8px;">
+    <label>OpenAI API Key: <input type="password" id="aiApiKey" placeholder="sk-..." style="width:340px;"></label>
+  </div>
+  <div style="margin-top:8px;">
+    <label>Модель: <input type="text" id="aiModel" value="gpt-4o-mini" style="width:220px;"></label>
+  </div>
+  <div style="margin-top:8px;">
+    <label>Разнообразие (temperature): <input type="range" id="aiTemp" min="0.2" max="1.2" step="0.1" value="0.9"> <span id="aiTempVal">0.9</span></label>
+  </div>
+  <div style="margin-top:8px;">
+    <label>Макс. длина (токенов): <input type="number" id="aiMaxTokens" min="40" max="300" value="120"></label>
+  </div>
+  <div style="margin-top:12px;">
+    <label><input type="checkbox" id="aiStyleMix"> Микс стилей</label>
+    <div id="aiStylesBox" style="margin-top:6px;">
+      <label style="margin-right:10px;"><input type="checkbox" class="aiStyle" value="short" checked> Короткий</label>
+      <label style="margin-right:10px;"><input type="checkbox" class="aiStyle" value="friendly" checked> Дружелюбный</label>
+      <label style="margin-right:10px;"><input type="checkbox" class="aiStyle" value="formal" checked> Формальный</label>
+      <label style="margin-right:10px;"><input type="checkbox" class="aiStyle" value="detailed" checked> Подробный</label>
+      <label style="margin-right:10px;"><input type="checkbox" class="aiStyle" value="concise" checked> Сжатый</label>
+    </div>
+  </div>
+  <div style="margin-top:8px;">
+    <button id="aiSave">Сохранить AI-настройки</button>
+    <button id="aiTest">Тестировать генерацию</button>
+    <span id="aiStatus" style="margin-left:10px;color:#2a7;">&nbsp;</span>
+  </div>
+  <p style="font-size:12px;color:#666;margin-top:8px;">Язык выбирается автоматически: .cz → чешский, .sk → словацкий.</p>
+</section>
+
+</body>
+</html>
