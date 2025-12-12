@@ -304,6 +304,64 @@ function switchAlias(country) {
   });
 }
 
+let __emailEdit = null; // { country:'cz'|'sk', idx:number, value:string, focus:boolean }
+
+function startEmailInlineEdit(country, idx, currentValue){
+  __emailEdit = { country, idx, value: currentValue, focus: true };
+  load();
+}
+
+function cancelEmailInlineEdit(){
+  __emailEdit = null;
+  load();
+}
+
+function commitEmailInlineEdit(country, idx){
+  const input = document.getElementById(`emailEdit_${country}_${idx}`);
+  const rawValue = input ? input.value : (__emailEdit ? __emailEdit.value : '');
+  const newEmail = String(rawValue || '').replace(/\r|\n/g,'');
+
+  chrome.storage.local.get('cfg', d => {
+    let cfg = d.cfg || {emails:{cz:[],sk:[]},currentIdx:{cz:0,sk:0},blacklist:{cz:[],sk:[]}};
+    cfg.emails = cfg.emails || {cz:[], sk:[]};
+    cfg.blacklist = cfg.blacklist || {cz:[], sk:[]};
+    cfg.cookieProfiles = cfg.cookieProfiles || {cz:[], sk:[]};
+    cfg.lastApplied = cfg.lastApplied || {cz:'', sk:''};
+
+    const emails = Array.isArray(cfg.emails[country]) ? cfg.emails[country] : [];
+    const oldEmail = emails[idx];
+
+    if (!newEmail){
+      alert('Пустой email нельзя');
+      return;
+    }
+    if (emails.some((e,i)=> e===newEmail && i!==idx)){
+      alert('Такой email уже есть в списке');
+      return;
+    }
+
+    // 1) emails
+    emails[idx] = newEmail;
+    cfg.emails[country] = emails;
+
+    // 2) cookieProfiles rename
+    const arr = Array.isArray(cfg.cookieProfiles[country]) ? cfg.cookieProfiles[country] : [];
+    arr.forEach(p => { if (p && p.email === oldEmail) p.email = newEmail; });
+    cfg.cookieProfiles[country] = arr;
+
+    // 3) blacklist rename
+    cfg.blacklist[country] = (cfg.blacklist[country] || []).map(e => e === oldEmail ? newEmail : e);
+
+    // 4) lastApplied rename
+    if ((cfg.lastApplied[country] || '') === oldEmail) cfg.lastApplied[country] = newEmail;
+
+    chrome.storage.local.set({ cfg }, () => {
+      __emailEdit = null;
+      load();
+    });
+  });
+}
+
 function load() {
   chrome.storage.local.get('cfg', d => {
     let cfg = d.cfg || {emails:{cz:[],sk:[]},currentIdx:{cz:0,sk:0},blacklist:{cz:[],sk:[]}};
@@ -336,8 +394,54 @@ function renderTable(countryKey, cfg) {
     const tr = tbody.insertRow();
     tr.className = i===cfg.currentIdx[country] ? 'active-row' : cfg.blacklist[country].includes(em) ? 'black-row':'';
     tr.insertCell().textContent = i+1;
-    tr.insertCell().textContent = em;
-    tr.insertCell().textContent = tr.className === 'active-row' ? 'Active' : (tr.className === 'black-row' ? 'Blacklist' : 'Queue');
+    const tdAlias = tr.insertCell();
+    const tdStatus = tr.insertCell();
+    const tdActions = tr.insertCell();
+
+    const isEditing = __emailEdit && __emailEdit.country===country && __emailEdit.idx===i;
+
+    if (isEditing) {
+      const input = document.createElement('input');
+      input.type = 'text';
+      input.id = `emailEdit_${country}_${i}`;
+      input.value = __emailEdit ? __emailEdit.value : em;
+      input.style.width = '98%';
+      input.oninput = () => { if(__emailEdit) __emailEdit.value = input.value; };
+      input.onkeydown = (ev) => {
+        if (ev.key === 'Enter') { ev.preventDefault(); commitEmailInlineEdit(country,i); }
+        else if (ev.key === 'Escape') { ev.preventDefault(); cancelEmailInlineEdit(); }
+      };
+      tdAlias.appendChild(input);
+
+      const btnOk = document.createElement('button');
+      btnOk.textContent = '✔️';
+      btnOk.className = 'btn-small';
+      btnOk.onclick = (ev) => { ev.preventDefault(); ev.stopPropagation(); commitEmailInlineEdit(country,i); };
+
+      const btnCancel = document.createElement('button');
+      btnCancel.textContent = '✖️';
+      btnCancel.className = 'btn-small';
+      btnCancel.style.marginLeft = '6px';
+      btnCancel.onclick = (ev) => { ev.preventDefault(); ev.stopPropagation(); cancelEmailInlineEdit(); };
+
+      tdActions.appendChild(btnOk);
+      tdActions.appendChild(btnCancel);
+
+      if (__emailEdit && __emailEdit.focus) {
+        __emailEdit.focus = false;
+        setTimeout(()=>{ input.focus(); input.setSelectionRange(input.value.length, input.value.length); },0);
+      }
+    } else {
+      tdAlias.textContent = em;
+      const btnEdit = document.createElement('button');
+      btnEdit.textContent = '✏️';
+      btnEdit.className = 'btn-small';
+      btnEdit.title = 'Редактировать';
+      btnEdit.onclick = (ev) => { ev.preventDefault(); ev.stopPropagation(); startEmailInlineEdit(country, i, em); };
+      tdActions.appendChild(btnEdit);
+    }
+
+    tdStatus.textContent = tr.className === 'active-row' ? 'Active' : (tr.className === 'black-row' ? 'Blacklist' : 'Queue');
   });
 }
 
