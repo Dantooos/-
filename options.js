@@ -10,7 +10,11 @@ function __mandFromSeed(seedLocal){
 }
 
 function orderAliases(base, maxN){
-  const [seedLocalOrUser, dom] = base.split('@');
+  const baseStr = String(base ?? '').trim();
+  const tail = baseStr.match(/\.+$/)?.[0] || '';
+  const core = tail ? baseStr.slice(0, -tail.length) : baseStr;
+
+  const [seedLocalOrUser, dom] = core.split('@');
   if(!seedLocalOrUser || !dom) return [];
   const user = seedLocalOrUser.replace(/\./g,'');
   const mand = __mandFromSeed(seedLocalOrUser);
@@ -20,8 +24,8 @@ function orderAliases(base, maxN){
   (function(){
     let arr=user.split('');
     for(let j=mand.length-1;j>=0;j--) arr.splice(mand[j],0,'.');
-    const a0=arr.join('')+'@'+dom;
-    if(!a0.endsWith('.') && !a0.includes('..')) out.push(a0);
+    const aliasCore=arr.join('')+'@'+dom;
+    if(!aliasCore.endsWith('.') && !aliasCore.includes('..')) out.push(aliasCore + tail);
   })();
   function combine(arr,k){ const res=[]; function go(st, combo){
     if(combo.length===k){ res.push(combo.slice()); return; }
@@ -34,9 +38,10 @@ function orderAliases(base, maxN){
       const full = Array.from(new Set(mand.concat(comb))).sort((a,b)=>a-b);
       let arr=user.split('');
       for(let j=full.length-1;j>=0;j--) arr.splice(full[j],0,'.');
-      const alias = arr.join('')+'@'+dom;
-      if(!alias.endsWith('.') && !alias.includes('..')){
-        if(!out.includes(alias)) out.push(alias);
+      const aliasCore = arr.join('')+'@'+dom;
+      const aliasFinal = aliasCore + tail;
+      if(!aliasCore.endsWith('.') && !aliasCore.includes('..')){
+        if(!out.includes(aliasFinal)) out.push(aliasFinal);
         if(maxN && out.length>=maxN) break;
       }
     }
