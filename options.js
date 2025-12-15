@@ -11,41 +11,31 @@ function __mandFromSeed(seedLocal){
 
 function orderAliases(base, maxN){
   const baseStr = String(base ?? '').trim();
+  if(!baseStr) return [];
+
+  // (оставляем совместимость с твоим текущим tail/core разбором)
   const tail = baseStr.match(/\.+$/)?.[0] || '';
   const core = tail ? baseStr.slice(0, -tail.length) : baseStr;
 
-  const [seedLocalOrUser, dom] = core.split('@');
-  if(!seedLocalOrUser || !dom) return [];
-  const user = seedLocalOrUser.replace(/\./g,'');
-  const mand = __mandFromSeed(seedLocalOrUser);
-  const positions=[]; for(let i=3;i<user.length;i++) positions.push(i);
-  const out=[];
-  // mandatory-only first
-  (function(){
-    let arr=user.split('');
-    for(let j=mand.length-1;j>=0;j--) arr.splice(mand[j],0,'.');
-    const aliasCore=arr.join('')+'@'+dom;
-    if(!aliasCore.endsWith('.') && !aliasCore.includes('..')) out.push(aliasCore + tail);
-  })();
-  function combine(arr,k){ const res=[]; function go(st, combo){
-    if(combo.length===k){ res.push(combo.slice()); return; }
-    for(let i=st;i<arr.length;i++){ combo.push(arr[i]); go(i+1,combo); combo.pop(); }
-  } go(0,[]); return res; }
-  let k=1;
-  while((maxN?out.length<maxN:true) && k<=positions.length){
-    const combs = combine(positions,k);
-    for(const comb of combs){
-      const full = Array.from(new Set(mand.concat(comb))).sort((a,b)=>a-b);
-      let arr=user.split('');
-      for(let j=full.length-1;j>=0;j--) arr.splice(full[j],0,'.');
-      const aliasCore = arr.join('')+'@'+dom;
-      const aliasFinal = aliasCore + tail;
-      if(!aliasCore.endsWith('.') && !aliasCore.includes('..')){
-        if(!out.includes(aliasFinal)) out.push(aliasFinal);
-        if(maxN && out.length>=maxN) break;
-      }
-    }
-    k++;
+  const at = core.indexOf('@');
+  if(at <= 0) return [];
+  const local = core.slice(0, at);
+  const dom = core.slice(at + 1);
+  if(!dom) return [];
+
+  // отделяем последнюю цифру (если есть)
+  let stem = local;
+  let lastDigit = '';
+  if(/\d$/.test(local)){
+    lastDigit = local.slice(-1);
+    stem = local.slice(0, -1);
+  }
+
+  const out = [];
+  const limit = Math.min(100, maxN || 100);
+  for(let n=0; n<100 && out.length<limit; n++){
+    const mid = String(n).padStart(2, '0'); // 00..99
+    out.push(`${stem}${mid}${lastDigit}@${dom}${tail}`);
   }
   return out;
 }
