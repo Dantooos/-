@@ -97,22 +97,101 @@
 
   <!-- EMAIL-АЛИАСЫ -->
   <section id="email" class="tab active">
-    <div style="display: flex; gap: 18px; align-items: flex-start;">
+    <div style="display:flex; gap:18px; align-items:flex-start;">
+      <!-- CZ -->
       <div style="flex:1;">
-        <label for="czBase"><b>CZ email:</b></label>
-        <input id="czBase" placeholder="base@gmail.com" style="width:220px;">
-        <button id="saveCz">💾 Сохранить +20</button>
-        <button id="switchCz">🔄 Сменить alias</button>
+        <div class="email-builder">
+          <div class="eb-title"><b>CZ:</b></div>
+
+          <div class="eb-row">
+            <div class="eb-field">
+              <label>Имя</label>
+              <input id="czFirst" placeholder="ivan" autocomplete="off">
+            </div>
+            <div class="eb-field">
+              <label>Фамилия</label>
+              <input id="czLast" placeholder="ivanov" autocomplete="off">
+            </div>
+          </div>
+
+          <div class="eb-row eb-domain">
+            <span class="eb-at">@</span>
+
+            <div class="subpicker" id="czSubPicker" data-country="cz">
+              <button type="button" class="subpicker__btn">Поддомены ▾</button>
+              <div class="subpicker__menu hidden">
+                <input type="text" class="subpicker__search" placeholder="Поиск...">
+                <div class="subpicker__actions">
+                  <button type="button" class="subpicker__all">Все</button>
+                  <button type="button" class="subpicker__none">Очистить</button>
+                </div>
+                <div class="subpicker__list"></div>
+              </div>
+              <div class="subpicker__summary"></div>
+            </div>
+
+            <span class="eb-dot">.</span>
+            <input id="czDomain" class="eb-domain-input" placeholder="mydomain.com" autocomplete="off">
+          </div>
+
+          <div class="eb-row eb-actions">
+            <button id="saveCz">⚡ Генерировать 100</button>
+            <button id="switchCz">🔄 Сменить alias</button>
+          </div>
+
+          <div id="czPreview" class="eb-preview"></div>
+        </div>
+
         <table id="tableCZ" class="alias-table" style="margin-top:10px;">
           <thead><tr><th>#</th><th>Alias</th><th>Статус</th><th>Действия</th></tr></thead>
           <tbody></tbody>
         </table>
       </div>
+
+      <!-- SK -->
       <div style="flex:1;">
-        <label for="skBase"><b>SK email:</b></label>
-        <input id="skBase" placeholder="base@gmail.com" style="width:220px;">
-        <button id="saveSk">💾 Сохранить +20</button>
-        <button id="switchSk">🔄 Сменить alias</button>
+        <div class="email-builder">
+          <div class="eb-title"><b>SK:</b></div>
+
+          <div class="eb-row">
+            <div class="eb-field">
+              <label>Имя</label>
+              <input id="skFirst" placeholder="peter" autocomplete="off">
+            </div>
+            <div class="eb-field">
+              <label>Фамилия</label>
+              <input id="skLast" placeholder="novak" autocomplete="off">
+            </div>
+          </div>
+
+          <div class="eb-row eb-domain">
+            <span class="eb-at">@</span>
+
+            <div class="subpicker" id="skSubPicker" data-country="sk">
+              <button type="button" class="subpicker__btn">Поддомены ▾</button>
+              <div class="subpicker__menu hidden">
+                <input type="text" class="subpicker__search" placeholder="Поиск...">
+                <div class="subpicker__actions">
+                  <button type="button" class="subpicker__all">Все</button>
+                  <button type="button" class="subpicker__none">Очистить</button>
+                </div>
+                <div class="subpicker__list"></div>
+              </div>
+              <div class="subpicker__summary"></div>
+            </div>
+
+            <span class="eb-dot">.</span>
+            <input id="skDomain" class="eb-domain-input" placeholder="mydomain.com" autocomplete="off">
+          </div>
+
+          <div class="eb-row eb-actions">
+            <button id="saveSk">⚡ Генерировать 100</button>
+            <button id="switchSk">🔄 Сменить alias</button>
+          </div>
+
+          <div id="skPreview" class="eb-preview"></div>
+        </div>
+
         <table id="tableSK" class="alias-table" style="margin-top:10px;">
           <thead><tr><th>#</th><th>Alias</th><th>Статус</th><th>Действия</th></tr></thead>
           <tbody></tbody>
