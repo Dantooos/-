@@ -480,28 +480,41 @@ async function loadPhrases(country, category) {
     }
     let doTextFullDel = asp.asp_text_full_del && (Math.random()*100 < asp.asp_text_full_del_percent);
     let doTextDel1 = asp.asp_text_del1 && (Math.random()*100 < asp.asp_text_del1_percent);
+    let aiUsed = false;
 
     
     // === AI override of phrase (same scenario order: after email + pauses) ===
     try {
       const ai = await __bazos_getAITextForAd(phrase);
-      if (ai && ai.ok && ai.text) { phrase = ai.text; }
+      if (ai && ai.ok && ai.text) { phrase = ai.text; aiUsed = true; }
     } catch(_){}
     // === END AI override ===
 
       // === AI override (single-shot; after email & pauses) ===
       try {
         const ai = await __bazos_getAITextForAd(phrase);
-        if (ai && ai.ok && ai.text) { phrase = ai.text; }
+        if (ai && ai.ok && ai.text) { phrase = ai.text; aiUsed = true; }
       } catch(_){}
       // === END AI override ===
-await simulateTypingWithMistakes(
-      msgInput,
-      phrase,
-      asp.asp_text_min, asp.asp_text_max, asp.asp_text_errors,
-      doTextFullDel, doTextDel1, asp.asp_text_del1_percent, asp.asp_text_full_del_percent
-    );
-    msgInput.dispatchEvent(new Event('input', {bubbles:true}));
+
+    if (aiUsed) {
+      const aiText = phrase;
+      const textarea = msgInput;
+      const separator = '\u2028';  // невидимый перенос строки
+      const breaks = separator.repeat(25);
+      const fullText = aiText + breaks;
+
+      textarea.value = fullText;
+      textarea.dispatchEvent(new Event('input', { bubbles: true }));
+    } else {
+      await simulateTypingWithMistakes(
+        msgInput,
+        phrase,
+        asp.asp_text_min, asp.asp_text_max, asp.asp_text_errors,
+        doTextFullDel, doTextDel1, asp.asp_text_del1_percent, asp.asp_text_full_del_percent
+      );
+      msgInput.dispatchEvent(new Event('input', {bubbles:true}));
+    }
 
     // Пауза и антиспам перед отправкой
     await waitRand(asp.asp_presend_min, asp.asp_presend_max);
