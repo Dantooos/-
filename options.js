@@ -10,39 +10,319 @@ function __mandFromSeed(seedLocal){
 }
 
 function orderAliases(base, maxN){
-  const [seedLocalOrUser, dom] = base.split('@');
-  if(!seedLocalOrUser || !dom) return [];
-  const user = seedLocalOrUser.replace(/\./g,'');
-  const mand = __mandFromSeed(seedLocalOrUser);
-  const positions=[]; for(let i=3;i<user.length;i++) positions.push(i);
-  const out=[];
-  // mandatory-only first
-  (function(){
-    let arr=user.split('');
-    for(let j=mand.length-1;j>=0;j--) arr.splice(mand[j],0,'.');
-    const a0=arr.join('')+'@'+dom;
-    if(!a0.endsWith('.') && !a0.includes('..')) out.push(a0);
-  })();
-  function combine(arr,k){ const res=[]; function go(st, combo){
-    if(combo.length===k){ res.push(combo.slice()); return; }
-    for(let i=st;i<arr.length;i++){ combo.push(arr[i]); go(i+1,combo); combo.pop(); }
-  } go(0,[]); return res; }
-  let k=1;
-  while((maxN?out.length<maxN:true) && k<=positions.length){
-    const combs = combine(positions,k);
-    for(const comb of combs){
-      const full = Array.from(new Set(mand.concat(comb))).sort((a,b)=>a-b);
-      let arr=user.split('');
-      for(let j=full.length-1;j>=0;j--) arr.splice(full[j],0,'.');
-      const alias = arr.join('')+'@'+dom;
-      if(!alias.endsWith('.') && !alias.includes('..')){
-        if(!out.includes(alias)) out.push(alias);
-        if(maxN && out.length>=maxN) break;
-      }
-    }
-    k++;
+  const baseStr = String(base ?? '').trim();
+  if(!baseStr) return [];
+
+  // (оставляем совместимость с твоим текущим tail/core разбором)
+  const tail = baseStr.match(/\.+$/)?.[0] || '';
+  const core = tail ? baseStr.slice(0, -tail.length) : baseStr;
+
+  const at = core.indexOf('@');
+  if(at <= 0) return [];
+  const local = core.slice(0, at);
+  const dom = core.slice(at + 1);
+  if(!dom) return [];
+
+  // отделяем последнюю цифру (если есть)
+  let stem = local;
+  let lastDigit = '';
+  if(/\d$/.test(local)){
+    lastDigit = local.slice(-1);
+    stem = local.slice(0, -1);
+  }
+
+  const out = [];
+  const limit = Math.min(100, maxN || 100);
+  for(let n=0; n<100 && out.length<limit; n++){
+    const mid = String(n).padStart(2, '0'); // 00..99
+    out.push(`${stem}${mid}${lastDigit}@${dom}${tail}`);
   }
   return out;
+}
+
+const EMAIL_SUBDOMAINS = [
+  "gmail","hotmail","outlook",
+  "seznam","email","post","centrum","atlas","volny",
+  "zoznam","azet","pobox"
+];
+
+const EMAIL_GENERATE_COUNT = 100;
+
+function ensureBuilderCfg(cfg){
+  cfg = cfg || {};
+  cfg.emails = cfg.emails || {cz:[], sk:[]};
+  cfg.currentIdx = cfg.currentIdx || {cz:0, sk:0};
+  cfg.blacklist = cfg.blacklist || {cz:[], sk:[]};
+  cfg.cookieProfiles = cfg.cookieProfiles || {cz:[], sk:[]};
+  cfg.lastApplied = cfg.lastApplied || {cz:'', sk:''};
+  cfg.cookieRotationIdx = cfg.cookieRotationIdx || {cz:0, sk:0};
+
+  cfg.emailBuilder = cfg.emailBuilder || { cz:{first:"", last:"", domain:""}, sk:{first:"", last:"", domain:""} };
+  cfg.emailBuilder.cz = cfg.emailBuilder.cz || {first:"", last:"", domain:""};
+  cfg.emailBuilder.sk = cfg.emailBuilder.sk || {first:"", last:"", domain:""};
+
+  cfg.emailSubSel = cfg.emailSubSel || { cz: EMAIL_SUBDOMAINS.slice(), sk: EMAIL_SUBDOMAINS.slice() };
+  if(!Array.isArray(cfg.emailSubSel.cz) || !cfg.emailSubSel.cz.length) cfg.emailSubSel.cz = EMAIL_SUBDOMAINS.slice();
+  if(!Array.isArray(cfg.emailSubSel.sk) || !cfg.emailSubSel.sk.length) cfg.emailSubSel.sk = EMAIL_SUBDOMAINS.slice();
+  return cfg;
+}
+
+function normalizeDomain(s){
+  let v = String(s||"").trim().toLowerCase();
+  v = v.replace(/\s+/g,"");
+  v = v.replace(/^\.+/,"").replace(/\.+$/,"");
+  return v;
+}
+
+function slug(s){
+  const map = {
+    "а":"a","б":"b","в":"v","г":"g","д":"d","е":"e","ё":"e","ж":"zh","з":"z","и":"i","й":"y",
+    "к":"k","л":"l","м":"m","н":"n","о":"o","п":"p","р":"r","с":"s","т":"t","у":"u","ф":"f",
+    "х":"h","ц":"c","ч":"ch","ш":"sh","щ":"sch","ъ":"","ы":"y","ь":"","э":"e","ю":"yu","я":"ya"
+  };
+  let v = String(s||"").trim().toLowerCase();
+  v = v.split("").map(ch => (map[ch] != null ? map[ch] : ch)).join("");
+  v = v.replace(/[^a-z0-9]+/g,"");
+  return v;
+}
+
+function randomInt(min, max){
+  min = Math.floor(min);
+  max = Math.floor(max);
+  return Math.floor(Math.random() * (max - min + 1)) + min;
+}
+
+function buildLocals(first, last){
+  const f = slug(first);
+  const l = slug(last);
+  if(!f || !l) return [];
+  const fi = f[0] || "";
+  const li = l[0] || "";
+  const raw = [
+    `${f}.${l}`,
+    `${l}.${f}`,
+    `${f}${l}`,
+    `${l}${f}`,
+    `${fi}${l}`,
+    `${l}${fi}`,
+    `${f}${li}`,
+    `${li}${l}`
+  ];
+  const out = [];
+  const seen = new Set();
+  for(const x of raw){
+    const v = x.toLowerCase();
+    if(!seen.has(v)){
+      seen.add(v);
+      out.push(x);
+    }
+  }
+  return out;
+}
+
+/**
+ * Вставка даты/года в локальную часть:
+ * - 20% случаев — без даты (чистый local)
+ * - остальное:
+ *   * иногда год 1984
+ *   * иногда две цифры 84
+ *   * иногда полная дата ddmmyyyy (между 1980-01-01 и 1990-12-31)
+ *   * позиция: в начале, в конце, или через точку
+ */
+function buildLocalWithYear(baseLocal){
+  if(!baseLocal) return "";
+
+  // 20% — без даты/года
+  if(Math.random() < 0.2){
+    return baseLocal;
+  }
+
+  const year = randomInt(1980, 1990);
+  let frag;
+  const r = Math.random();
+  if(r < 0.4){
+    // полный год: 1984
+    frag = String(year);
+  }else if(r < 0.7){
+    // две цифры: 84
+    frag = String(year).slice(2);
+  }else{
+    // полная дата ddmmyyyy
+    const start = new Date(1980, 0, 1);   // 01.01.1980
+    const end   = new Date(1990, 11, 31); // 31.12.1990
+    const t = start.getTime() + Math.random() * (end.getTime() - start.getTime());
+    const d = new Date(t);
+    const dd = String(d.getDate()).padStart(2, "0");
+    const mm = String(d.getMonth() + 1).padStart(2, "0");
+    const yyyy = d.getFullYear();
+    frag = dd + mm + yyyy; // 05061984
+  }
+
+  const mode = randomInt(0, 2);
+  if(mode === 0){
+    // local + дата
+    return baseLocal + frag;
+  }else if(mode === 1){
+    // local.дата
+    return baseLocal + "." + frag;
+  }else{
+    // дата + local
+    return frag + baseLocal;
+  }
+}
+
+/**
+ * Генерация e-mail:
+ * - round-robin по поддоменам
+ * - локал = имя+фамилия (buildLocals) + рандомная дата/год (buildLocalWithYear)
+ * - дубликаты e-mail (полный адрес) исключаются через Set
+ * - суффиксы 01/02/03 НЕ используются
+ */
+function generateEmails(country, cfg, first, last, domain, count){
+  cfg = ensureBuilderCfg(cfg || {});
+
+  const subs = (cfg.emailSubSel && cfg.emailSubSel[country]) ? cfg.emailSubSel[country].slice() : [];
+  if(!subs.length) return [];
+
+  const localsBase = buildLocals(first, last);
+  if(!localsBase.length) return [];
+
+  const dom = normalizeDomain(domain);
+  if(!dom || !dom.includes(".")) return [];
+
+  const target = count || EMAIL_GENERATE_COUNT;
+  const emails = [];
+  const usedEmails = new Set();
+
+  let i = 0;
+  const maxIterations = target * 200; // большой запас, чтобы набить 100 уникальных
+  while(emails.length < target && i < maxIterations){
+    const baseLocal = localsBase[i % localsBase.length];
+    const local = buildLocalWithYear(baseLocal);
+    const sub = subs[emails.length % subs.length]; // round-robin по поддоменам
+    const email = `${local}@${sub}.${dom}`.toLowerCase();
+    if(!usedEmails.has(email)){
+      usedEmails.add(email);
+      emails.push(email);
+    }
+    i++;
+  }
+  return emails;
+}
+
+/**
+ * Для превью — 10 штук.
+ */
+function generate10Emails(country, cfg, first, last, domain){
+  return generateEmails(country, cfg, first, last, domain, 10);
+}
+
+function renderSubPicker(country, cfg){
+  const root = document.getElementById(country + "SubPicker");
+  if(!root) return;
+
+  cfg = ensureBuilderCfg(cfg || {});
+
+  const btn = root.querySelector(".subpicker__btn");
+  const menu = root.querySelector(".subpicker__menu");
+  const search = root.querySelector(".subpicker__search");
+  const list = root.querySelector(".subpicker__list");
+  const allBtn = root.querySelector(".subpicker__all");
+  const noneBtn = root.querySelector(".subpicker__none");
+  const summary = root.querySelector(".subpicker__summary");
+
+  const all = EMAIL_SUBDOMAINS.slice();
+  const selected = new Set((cfg.emailSubSel[country] || []).slice());
+
+  function updateSummary(){
+    const arr = Array.from(selected);
+    cfg.emailSubSel[country] = arr;
+    const head = arr.slice(0,3).join(", ");
+    summary.textContent = arr.length
+      ? `Выбрано: ${arr.length}${head ? " ("+head+(arr.length>3?", …":"")+")" : ""}`
+      : "Не выбрано";
+  }
+
+  function draw(q){
+    const needle = String(q||"").trim().toLowerCase();
+    list.innerHTML = "";
+    const arr = needle ? all.filter(x => x.includes(needle)) : all;
+    arr.forEach(name=>{
+      const lab = document.createElement("label");
+      lab.className = "subpicker__item";
+      const cb = document.createElement("input");
+      cb.type = "checkbox";
+      cb.checked = selected.has(name);
+      cb.onchange = () => {
+        if(cb.checked) selected.add(name); else selected.delete(name);
+        cfg.emailSubSel[country] = Array.from(selected);
+        chrome.storage.local.set({cfg}, ()=>{
+          updateSummary();
+          updatePreview(country, cfg);
+        });
+      };
+      const sp = document.createElement("span");
+      sp.textContent = name;
+      lab.appendChild(cb);
+      lab.appendChild(sp);
+      list.appendChild(lab);
+    });
+  }
+
+  if(btn){
+    btn.onclick = (ev)=>{
+      ev.preventDefault();
+      ev.stopPropagation();
+      menu.classList.toggle("hidden");
+    };
+  }
+  if(menu){
+    menu.onclick = (ev)=>{ ev.stopPropagation(); };
+  }
+  if(search){
+    search.oninput = ()=> draw(search.value);
+  }
+  if(allBtn){
+    allBtn.onclick = (ev)=>{
+      ev.preventDefault();
+      all.forEach(x=>selected.add(x));
+      cfg.emailSubSel[country] = Array.from(selected);
+      chrome.storage.local.set({cfg}, ()=>{
+        draw(search.value);
+        updateSummary();
+        updatePreview(country, cfg);
+      });
+    };
+  }
+  if(noneBtn){
+    noneBtn.onclick = (ev)=>{
+      ev.preventDefault();
+      selected.clear();
+      cfg.emailSubSel[country] = [];
+      chrome.storage.local.set({cfg}, ()=>{
+        draw(search.value);
+        updateSummary();
+        updatePreview(country, cfg);
+      });
+    };
+  }
+
+  updateSummary();
+  draw("");
+}
+
+function updatePreview(country, cfg){
+  cfg = ensureBuilderCfg(cfg || {});
+  const prev = document.getElementById(country + "Preview");
+  if(!prev) return;
+  const firstEl = document.getElementById(country + "First");
+  const lastEl  = document.getElementById(country + "Last");
+  const domEl   = document.getElementById(country + "Domain");
+  const first = firstEl ? firstEl.value : "";
+  const last  = lastEl ? lastEl.value : "";
+  const dom   = domEl ? domEl.value : "";
+  const list = generate10Emails(country, cfg, first, last, dom);
+  prev.textContent = list.length ? `Пример: ${list[0]}` : "";
 }
 
 
@@ -219,77 +499,88 @@ function getPhraseFiles() {
 
 function generateAliases(base){ return orderAliases(base, 20); }
 
-function save(country) {
-  // SAFE EMAIL→COOKIE PROFILES REMAP (preserve cookies)
-  const baseEl = document.getElementById(country + 'Base');
-  const base = baseEl ? baseEl.value.trim() : '';
-  if (!base) { alert('Введите базовый e-mail'); return; }
-
-  // генерим ВСЕ алиасы (до 100 штук) и сразу кладём их в таблицу.
-  // Никаких aliasPool/aliasCursor очередей — один раз сгенерили и живём
-  // с этим списком, пока базу не поменяли.
-  const poolAll = orderAliases(base, 100); // максимум 100 вариантов
-
-  chrome.storage.local.get('cfg', d => {
+function save(country){
+  chrome.storage.local.get('cfg', d=>{
     let cfg = (d && d.cfg) ? d.cfg : {};
-    cfg.emails = cfg.emails || {cz:[], sk:[]};
-    cfg.currentIdx = cfg.currentIdx || {cz:0, sk:0};
-    cfg.blacklist = cfg.blacklist || {cz:[], sk:[]};
-    cfg.aliasPool = cfg.aliasPool || {cz:[], sk:[]};
-    cfg.aliasCursor = cfg.aliasCursor || {cz:0, sk:0};
-    normalizeCookieProfilesLocal(cfg);
+    ensureBuilderCfg(cfg);
+    if(typeof normalizeCookieProfilesLocal === "function"){
+      normalizeCookieProfilesLocal(cfg);
+    }
 
-    // Меняем базовый e-mail — начинаем жизнь "с нуля" для этой страны:
-    // очищаем старый blacklist и любой старый пул/курсор, чтобы
-    // новая база никак не зависела от истории.
-    cfg.blacklist[country] = [];
-    cfg.aliasPool[country] = [];
-    cfg.aliasCursor[country] = 0;
+    const firstEl = document.getElementById(country + "First");
+    const lastEl  = document.getElementById(country + "Last");
+    const domEl   = document.getElementById(country + "Domain");
 
-    // ВСЕ алиасы для новой базы — сразу весь список идёт в таблицу.
-    const aliases = poolAll.slice();
+    const first = (firstEl && firstEl.value ? firstEl.value.trim() : "");
+    const last  = (lastEl  && lastEl.value  ? lastEl.value.trim()  : "");
+    const domRaw = (domEl && domEl.value ? domEl.value.trim() : "");
+    const domNorm = normalizeDomain(domRaw);
 
-    // aliasPool нам больше не нужен для генерации, но оставляем структуру
-    // пустой, чтобы не ломать остальной код.
-    cfg.aliasPool[country] = [];
+    if(!first || !last){
+      alert("Введите Имя и Фамилию");
+      return;
+    }
+    if(!domNorm || !domNorm.includes(".")){
+      alert("Введите домен (пример: mydomain.com)");
+      return;
+    }
+    if(!cfg.emailSubSel[country] || !cfg.emailSubSel[country].length){
+      alert("Выбери хотя бы 1 поддомен");
+      return;
+    }
 
+    // Генерация 100 уникальных e-mail с датой/годом
+    const aliases = generateEmails(country, cfg, first, last, domNorm, 100);
+    if(!aliases.length){
+      alert("Не удалось сгенерировать 100 email (проверь поля)");
+      return;
+    }
+
+    // сохраняем введённые значения конструктора
+    cfg.emailBuilder[country] = { first, last, domain: domNorm };
+
+    // предыдущие алиасы / профили
     const oldAliases = Array.isArray(cfg.emails[country]) ? cfg.emails[country].slice() : [];
-    const cp = Array.isArray(cfg.cookieProfiles && cfg.cookieProfiles[country]) ? cfg.cookieProfiles[country] : [];
+    const cp = Array.isArray(cfg.cookieProfiles[country]) ? cfg.cookieProfiles[country] : [];
 
+    // сбрасываем чёрный список и указатели
+    cfg.blacklist[country] = [];
+    cfg.currentIdx[country] = 0;
+    cfg.cookieRotationIdx[country] = 0;
+
+    // ремап cookieProfiles, чтобы по возможности сохранить существующие профили
     const newCp = [];
     const max = Math.max(oldAliases.length, aliases.length);
-    for (let i = 0; i < max; i++) {
+    for(let i=0;i<max;i++){
       const oldKey = oldAliases[i];
       const newKey = aliases[i];
-      if (!newKey) continue;
+      if(!newKey) continue;
 
       let prof =
-        (oldKey && cp.find(p => p && p.email === oldKey)) ||
-        cp.find(p => p && p.email === newKey);
-      if (!prof) {
-        prof = { email: newKey };
-      } else {
-        prof = Object.assign({}, prof, { email: newKey });
-      }
+        (oldKey && cp.find(p=>p && p.email === oldKey)) ||
+        cp.find(p=>p && p.email === newKey);
+
+      if(!prof) prof = { email: newKey };
+      else prof = Object.assign({}, prof, { email: newKey });
+
       newCp.push(prof);
     }
 
     cfg.cookieProfiles[country] = newCp;
     cfg.emails[country] = aliases;
-    cfg.currentIdx[country] = 0;
-    // при смене базы сбрасываем rotationIdx для страны
-    cfg.cookieRotationIdx = cfg.cookieRotationIdx || {cz:0, sk:0};
-    cfg.cookieRotationIdx[country] = 0;
 
-    // remap lastApplied pointer if it references old alias
-    cfg.lastApplied = cfg.lastApplied || {cz:'', sk:''};
+    // корректируем lastApplied
     const la = cfg.lastApplied[country];
-    if (la) {
+    if(la){
       const pos = oldAliases.indexOf(la);
-      if (pos >= 0 && aliases[pos]) cfg.lastApplied[country] = aliases[pos];
+      if(pos >= 0 && aliases[pos]){
+        cfg.lastApplied[country] = aliases[pos];
+      }else{
+        cfg.lastApplied[country] = aliases[0] || '';
+      }
     }
 
-    chrome.storage.local.set({ cfg }, () => { load(); });
+    chrome.storage.local.set({cfg}, ()=> load());
   });
 }
 
@@ -304,24 +595,100 @@ function switchAlias(country) {
   });
 }
 
+let __emailEdit = null; // { country:'cz'|'sk', idx:number, value:string, focus:boolean }
+
+function startEmailInlineEdit(country, idx, currentValue){
+  __emailEdit = { country, idx, value: currentValue, focus: true };
+  load();
+}
+
+function cancelEmailInlineEdit(){
+  __emailEdit = null;
+  load();
+}
+
+function commitEmailInlineEdit(country, idx){
+  const input = document.getElementById(`emailEdit_${country}_${idx}`);
+  const rawValue = input ? input.value : (__emailEdit ? __emailEdit.value : '');
+  const newEmail = String(rawValue || '').replace(/\r|\n/g,'');
+
+  chrome.storage.local.get('cfg', d => {
+    let cfg = d.cfg || {emails:{cz:[],sk:[]},currentIdx:{cz:0,sk:0},blacklist:{cz:[],sk:[]}};
+    cfg.emails = cfg.emails || {cz:[], sk:[]};
+    cfg.blacklist = cfg.blacklist || {cz:[], sk:[]};
+    cfg.cookieProfiles = cfg.cookieProfiles || {cz:[], sk:[]};
+    cfg.lastApplied = cfg.lastApplied || {cz:'', sk:''};
+
+    const emails = Array.isArray(cfg.emails[country]) ? cfg.emails[country] : [];
+    const oldEmail = emails[idx];
+
+    if (!newEmail){
+      alert('Пустой email нельзя');
+      return;
+    }
+    if (emails.some((e,i)=> e===newEmail && i!==idx)){
+      alert('Такой email уже есть в списке');
+      return;
+    }
+
+    // 1) emails
+    emails[idx] = newEmail;
+    cfg.emails[country] = emails;
+
+    // 2) cookieProfiles rename
+    const arr = Array.isArray(cfg.cookieProfiles[country]) ? cfg.cookieProfiles[country] : [];
+    arr.forEach(p => { if (p && p.email === oldEmail) p.email = newEmail; });
+    cfg.cookieProfiles[country] = arr;
+
+    // 3) blacklist rename
+    cfg.blacklist[country] = (cfg.blacklist[country] || []).map(e => e === oldEmail ? newEmail : e);
+
+    // 4) lastApplied rename
+    if ((cfg.lastApplied[country] || '') === oldEmail) cfg.lastApplied[country] = newEmail;
+
+    chrome.storage.local.set({ cfg }, () => {
+      __emailEdit = null;
+      load();
+    });
+  });
+}
+
 function load() {
   chrome.storage.local.get('cfg', d => {
     let cfg = d.cfg || {emails:{cz:[],sk:[]},currentIdx:{cz:0,sk:0},blacklist:{cz:[],sk:[]}};
-    cfg.aliasPool = cfg.aliasPool || {cz:[], sk:[]};
-
+    ensureBuilderCfg(cfg);
     renderTable('CZ', cfg);
     renderTable('SK', cfg);
 
-    const czBase = (cfg.aliasPool.cz && cfg.aliasPool.cz.length)
-      ? cfg.aliasPool.cz[0]
-      : (cfg.emails.cz.length ? cfg.emails.cz[0] : '');
+    const cz = cfg.emailBuilder.cz || {};
+    const sk = cfg.emailBuilder.sk || {};
 
-    const skBase = (cfg.aliasPool.sk && cfg.aliasPool.sk.length)
-      ? cfg.aliasPool.sk[0]
-      : (cfg.emails.sk.length ? cfg.emails.sk[0] : '');
+    const czFirst = document.getElementById('czFirst'); if(czFirst) czFirst.value = cz.first || '';
+    const czLast  = document.getElementById('czLast');  if(czLast)  czLast.value  = cz.last  || '';
+    const czDom   = document.getElementById('czDomain');if(czDom)   czDom.value   = cz.domain|| '';
 
-    document.getElementById('czBase').value = czBase;
-    document.getElementById('skBase').value = skBase;
+    const skFirst = document.getElementById('skFirst'); if(skFirst) skFirst.value = sk.first || '';
+    const skLast  = document.getElementById('skLast');  if(skLast)  skLast.value  = sk.last  || '';
+    const skDom   = document.getElementById('skDomain');if(skDom)   skDom.value   = sk.domain|| '';
+
+    renderSubPicker('cz', cfg);
+    renderSubPicker('sk', cfg);
+
+    updatePreview('cz', cfg);
+    updatePreview('sk', cfg);
+
+    ['czFirst','czLast','czDomain','skFirst','skLast','skDomain'].forEach(id=>{
+      const el = document.getElementById(id);
+      if(!el) return;
+      el.oninput = ()=>{
+        chrome.storage.local.get('cfg', r=>{
+          const cfg2 = r && r.cfg ? r.cfg : {};
+          ensureBuilderCfg(cfg2);
+          const country = id.startsWith('cz') ? 'cz' : 'sk';
+          updatePreview(country, cfg2);
+        });
+      };
+    });
   });
 }
 
@@ -336,8 +703,54 @@ function renderTable(countryKey, cfg) {
     const tr = tbody.insertRow();
     tr.className = i===cfg.currentIdx[country] ? 'active-row' : cfg.blacklist[country].includes(em) ? 'black-row':'';
     tr.insertCell().textContent = i+1;
-    tr.insertCell().textContent = em;
-    tr.insertCell().textContent = tr.className === 'active-row' ? 'Active' : (tr.className === 'black-row' ? 'Blacklist' : 'Queue');
+    const tdAlias = tr.insertCell();
+    const tdStatus = tr.insertCell();
+    const tdActions = tr.insertCell();
+
+    const isEditing = __emailEdit && __emailEdit.country===country && __emailEdit.idx===i;
+
+    if (isEditing) {
+      const input = document.createElement('input');
+      input.type = 'text';
+      input.id = `emailEdit_${country}_${i}`;
+      input.value = __emailEdit ? __emailEdit.value : em;
+      input.style.width = '98%';
+      input.oninput = () => { if(__emailEdit) __emailEdit.value = input.value; };
+      input.onkeydown = (ev) => {
+        if (ev.key === 'Enter') { ev.preventDefault(); commitEmailInlineEdit(country,i); }
+        else if (ev.key === 'Escape') { ev.preventDefault(); cancelEmailInlineEdit(); }
+      };
+      tdAlias.appendChild(input);
+
+      const btnOk = document.createElement('button');
+      btnOk.textContent = '✔️';
+      btnOk.className = 'btn-small';
+      btnOk.onclick = (ev) => { ev.preventDefault(); ev.stopPropagation(); commitEmailInlineEdit(country,i); };
+
+      const btnCancel = document.createElement('button');
+      btnCancel.textContent = '✖️';
+      btnCancel.className = 'btn-small';
+      btnCancel.style.marginLeft = '6px';
+      btnCancel.onclick = (ev) => { ev.preventDefault(); ev.stopPropagation(); cancelEmailInlineEdit(); };
+
+      tdActions.appendChild(btnOk);
+      tdActions.appendChild(btnCancel);
+
+      if (__emailEdit && __emailEdit.focus) {
+        __emailEdit.focus = false;
+        setTimeout(()=>{ input.focus(); input.setSelectionRange(input.value.length, input.value.length); },0);
+      }
+    } else {
+      tdAlias.textContent = em;
+      const btnEdit = document.createElement('button');
+      btnEdit.textContent = '✏️';
+      btnEdit.className = 'btn-small';
+      btnEdit.title = 'Редактировать';
+      btnEdit.onclick = (ev) => { ev.preventDefault(); ev.stopPropagation(); startEmailInlineEdit(country, i, em); };
+      tdActions.appendChild(btnEdit);
+    }
+
+    tdStatus.textContent = tr.className === 'active-row' ? 'Active' : (tr.className === 'black-row' ? 'Blacklist' : 'Queue');
   });
 }
 
@@ -1108,3 +1521,10 @@ chrome.storage.onChanged.addListener((changes, area) => {
 (function(){
   const oldLoad = window.loadAI;
 })(); // no-op to keep compatibility
+
+if(!window.__subpickerGlobalCloserBound){
+  window.__subpickerGlobalCloserBound = true;
+  document.addEventListener('click', ()=>{
+    document.querySelectorAll('.subpicker__menu').forEach(m=>m.classList.add('hidden'));
+  });
+}

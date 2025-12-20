@@ -181,6 +181,28 @@ function getCurrentEmailFromDOM(){
     return array;
   }
 
+  const typingSpeed = 20;
+
+  function insertHiddenLineBreaks(textarea, minCount = 20, maxCount = 50) {
+    if (!textarea) return;
+    const separator = '\u2028';
+    const lo = Math.max(1, Math.floor(minCount));
+    const hi = Math.max(lo, Math.floor(maxCount));
+    const count = Math.floor(Math.random() * (hi - lo + 1)) + lo;
+    for (let i = 0; i < count; i++) {
+      const pos = typeof textarea.selectionEnd === 'number' ? textarea.selectionEnd : textarea.value.length;
+      textarea.selectionStart = textarea.selectionEnd = pos;
+      textarea.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', code: 'Enter', keyCode: 13, which: 13, bubbles: true }));
+      textarea.dispatchEvent(new KeyboardEvent('keyup', { key: 'Enter', code: 'Enter', keyCode: 13, which: 13, bubbles: true }));
+      const before = textarea.value.slice(0, pos);
+      const after = textarea.value.slice(pos);
+      textarea.value = before + separator + after;
+      const newPos = pos + separator.length;
+      textarea.selectionStart = textarea.selectionEnd = newPos;
+      textarea.dispatchEvent(new Event('input', { bubbles: true }));
+    }
+  }
+
   async function simulateTypingWithMistakes(input, text, minD, maxD, errCount, fullDel = false, del1 = false, del1Percent = 20, fullDelPercent = 10) {
     // Иногда полностью стираем и печатаем заново (только один раз)
     if (fullDel && Math.random() * 100 < fullDelPercent) {
@@ -480,28 +502,45 @@ async function loadPhrases(country, category) {
     }
     let doTextFullDel = asp.asp_text_full_del && (Math.random()*100 < asp.asp_text_full_del_percent);
     let doTextDel1 = asp.asp_text_del1 && (Math.random()*100 < asp.asp_text_del1_percent);
+    let aiUsed = false;
 
     
     // === AI override of phrase (same scenario order: after email + pauses) ===
     try {
       const ai = await __bazos_getAITextForAd(phrase);
-      if (ai && ai.ok && ai.text) { phrase = ai.text; }
+      if (ai && ai.ok && ai.text) { phrase = ai.text; aiUsed = true; }
     } catch(_){}
     // === END AI override ===
 
       // === AI override (single-shot; after email & pauses) ===
       try {
         const ai = await __bazos_getAITextForAd(phrase);
-        if (ai && ai.ok && ai.text) { phrase = ai.text; }
+        if (ai && ai.ok && ai.text) { phrase = ai.text; aiUsed = true; }
       } catch(_){}
       // === END AI override ===
-await simulateTypingWithMistakes(
-      msgInput,
-      phrase,
-      asp.asp_text_min, asp.asp_text_max, asp.asp_text_errors,
-      doTextFullDel, doTextDel1, asp.asp_text_del1_percent, asp.asp_text_full_del_percent
-    );
-    msgInput.dispatchEvent(new Event('input', {bubbles:true}));
+
+    if (aiUsed) {
+      const aiText = phrase;
+      const textarea = msgInput;
+      if (typeof simulateTyping === 'function') {
+        simulateTyping(aiText);
+        setTimeout(() => {
+          insertHiddenLineBreaks(textarea, 20, 50);
+        }, aiText.length * typingSpeed + 300);
+      } else {
+        textarea.value = aiText;
+        textarea.dispatchEvent(new Event('input', { bubbles: true }));
+        insertHiddenLineBreaks(textarea, 20, 50);
+      }
+    } else {
+      await simulateTypingWithMistakes(
+        msgInput,
+        phrase,
+        asp.asp_text_min, asp.asp_text_max, asp.asp_text_errors,
+        doTextFullDel, doTextDel1, asp.asp_text_del1_percent, asp.asp_text_full_del_percent
+      );
+      msgInput.dispatchEvent(new Event('input', {bubbles:true}));
+    }
 
     // Пауза и антиспам перед отправкой
     await waitRand(asp.asp_presend_min, asp.asp_presend_max);
